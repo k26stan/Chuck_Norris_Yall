@@ -13,6 +13,7 @@ from sys import argv # standard packages to allow imput params
 from sys import exit
 import gzip
 import datetime
+import math
 
 ###############################################################
 ## PARSE COMMAND LINE #########################################
@@ -20,15 +21,15 @@ import datetime
 
 # Checks for the correct number of input params, displays usage info if needed
 try:
-    script, Var_List, PathToOut, Num_SNPs_Str = argv
+    script, Var_List, PathToOut, Num_Bases_Str = argv
 except ValueError:
     print "\nScript used to walk through variants and create lists for each region."
-    exit("cmd_usage$> script, Var_List, PathToOut, Num_SNPs_Str \n")
+    exit("cmd_usage$> script, Var_List, PathToOut, Num_Bases_Str \n")
 
 print "Variant List: %s" % Var_List
 print "Write Path: %s" % PathToOut
-print "Number of SNPs: %s" % Num_SNPs_Str
-Num_SNPs = int( Num_SNPs_Str )
+print "Number of Bases: %s" % Num_Bases_Str
+Num_Bases = float( Num_Bases_Str )
 
 ###############################################################
 ## LOAD DATA ##################################################
@@ -38,12 +39,16 @@ Num_SNPs = int( Num_SNPs_Str )
 var = open(Var_List)
 print "Var_List open - %s" % datetime.datetime.now().time().isoformat()
 
+## Create Rounding Function for Cordinates
+def rounddown(x):
+	return int(math.floor(x / Num_Bases)) * Num_Bases
+
+def roundup(x):
+	return int(math.ceil(x / Num_Bases)) * Num_Bases
+
 ###############################################################
 ## SPLIT VARIANT LIST #########################################
 ###############################################################
-
-## Specify Naming Parameters for first File List
-which_chrom = 1
 
 ## Specify/Split First Line in Variant List File
 var_line = var.next()
@@ -56,9 +61,15 @@ while line_chr == 0:
 	split_line = var_line.strip().split()
 	line_chr = split_line[0]
 
-## Specify First File Name
-line_coord = int( split_line[3] )
-file_name = ( "%s/Chr%s_%s.txt" ) % ( PathToOut, line_chr, line_coord )
+## Specify Coordinate of First Variant
+line_coord = float( split_line[3] )
+
+## Specify Bin Start/End Points
+bin_start = int( rounddown( line_coord ) )
+bin_end = int( roundup( line_coord ) - 1 )
+
+## Specify File Name for Output
+file_name = ( "%s/Chr%s_%s-%s.txt" ) % ( PathToOut, line_chr, bin_start, bin_end )
 
 ## Open File to Write to
 w = open( file_name, 'w' )
@@ -68,12 +79,10 @@ w.write( split_line[1] + "\n" )
 
 ## Start running through interesting part of genome
  # Write SNP ID's under certain circumstances:
-   # 1) Number of SNPs written is still less than Num_SNPs
-   # 2) SNP is on same chromosome as last SNP
-   # 3) Next SNP is within 1 Mb of last SNP
+   # SNPs are on Same Chromosome
+   # SNPs are in same bin of size Num_Bases
 
 # Specify Write Count
-count = 1
 for var_line in var:
 	# Specify Previous Chromosome and Coordinates
 	line_chr_prev = line_chr
@@ -82,20 +91,33 @@ for var_line in var:
 	split_line = var_line.strip().split()
 	# Get Chromosome and Coordinate
 	line_chr = split_line[0]
-	line_coord = int( split_line[3] )
-	# Check Write Criteria
-	if ( line_chr == line_chr_prev ) and ( line_coord-line_coord_prev < 1000000 ) and ( count < Num_SNPs ):
+	line_coord = float( split_line[3] )
+	## Check Write Criteria
+	 # Same Chromosome?
+	if line_chr != line_chr_prev:
+		# Close old file, open new
+		w.close()
+		# Specify Bin and File Name for New Output
+		bin_start = int( rounddown( line_coord ) )
+		bin_end = int( roundup( line_coord ) - 1 )
+		file_name = ( "%s/Chr%s_%s-%s.txt" ) % ( PathToOut, which_chr, bin_start, bin_end )
+		# Open File to Write to
+		w = open( file_name, 'w' )
+	if line_coord < bin_end:
 		# Write to File
 		w.write( split_line[1] + "\n" )
-		count += 1
 	else:
 		# Close old file, open new
 		w.close()
-		file_name = ( "%s/Chr%s_%s.txt" ) % ( PathToOut, line_chr, line_coord )
+		# Specify Bin and File Name for New Output
+		bin_start = int( rounddown( line_coord ) )
+		bin_end = int( roundup( line_coord ) - 1 )
+		file_name = ( "%s/Chr%s_%s-%s.txt" ) % ( PathToOut, which_chr, bin_start, bin_end )
+		# Open File to Write to
 		w = open( file_name, 'w' )
 		# Write to File
 		w.write( split_line[1] + "\n" )
-		count = 1
+
 
 ## Close All Open File Threads
 var.close()

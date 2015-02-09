@@ -99,16 +99,16 @@ fi
 
 ## Set up Directory for today's adventure
 echo \### Moving to Base Directory at `date`: \###
-echo $ASSOC
-ASSOC=${HOME_DIR}/${DATE}_${PHENO%%.txt}_${COVS_FILENAME}
-mkdir ${ASSOC}
-cd ${ASSOC}
+echo $OUT_DIR
+OUT_DIR=${HOME_DIR}/${DATE}_${PHENO%%.txt}_${COVS_FILENAME}
+mkdir ${OUT_DIR}
+cd ${OUT_DIR}
 
 ## Specify Output File Paths & Names
  # Maybe
 
 ## Specify a File to which to Write Updates
-UPDATE_FILE=${ASSOC}/Update.txt
+UPDATE_FILE=${OUT_DIR}/Update.txt
 
 ## Done
 if [ "$START_STEP" -le 1 ]; then
@@ -130,8 +130,8 @@ echo `date` "2 - Determine/Adjust Variant File Formats" >> ${UPDATE_FILE}
 
 ## Determing File Type and Convert to .bed File
 if [ ${VAR_FILE: -4} == ".vcf" ] ; then
-        ${VCF_TOOLS} --plink --vcf ${VAR_FILE} --out ${ASSOC}_${VAR_FILE_NAME%%.vcf}
-        VAR_FILE=${ASSOC}_${VAR_FILE_NAME%%.vcf}.ped
+        ${VCF_TOOLS} --plink --vcf ${VAR_FILE} --out ${OUT_DIR}_${VAR_FILE_NAME%%.vcf}
+        VAR_FILE=${OUT_DIR}_${VAR_FILE_NAME%%.vcf}.ped
 fi
 if [ ${VAR_FILE: -4} == ".ped" ] ; then
         ${PLINK} --make-bed --file ${VAR_FILE%%.ped} --out ${VAR_FILE%%.ped}
@@ -143,31 +143,7 @@ echo `date` "2 - Determine/Adjust Variant File Formats - DONE" >> ${UPDATE_FILE}
 printf "V\nV\nV\nV\nV\nV\nV\nV\n"
 fi
 ##########################################################################
-## 2 ## Convert and Separate Variant File by Chromosome ##################
-##########################################################################
- # Use Bash
- # Create Directory for Coordinate Files and Write Coord Files for each Region
-if [ "$START_STEP" -le 2 ]; then
-echo \### 2 - `date` \###
-echo \### Format Variant File \###
-echo `date` "2 - Format Variant File" >> ${UPDATE_FILE}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##########################################################################
-## 3 ## Create Variant List for Specified Regions ########################
+## 3 ## Create Variant Lists for Specified Regions #######################
 ##########################################################################
  # Use Bash
  # Create Directory for Coordinate Files and Write Coord Files for each Region
@@ -176,20 +152,34 @@ echo \### 3 - `date` \###
 echo \### Create Variant Lists \###
 echo `date` "3 - Create Variant Lists" >> ${UPDATE_FILE}
 
+## Make Directory to write New SNP lists to
+OUT_DIR_3=${OUT_DIR}/SNP_Lists
+mkdir OUT_DIR_3
+
+## Specify Variant List
+VAR_LIST=${VAR_FILE%%.bed}.bim
+
 ##########################################################
 ## If Regions are determined by number of SNPs
 if [ $SNP_OR_BASE == "SNP" ]
 then
-## Specify Variant List
 
-
-
+## Run Python Script to Write New Variant Lists (output to $OUT_DIR_3)
+python 3-Split_Var_List_SNP.py ${VAR_LIST} ${OUT_DIR_3} ${NUM_UNITS}
 
 else
 ##########################################################
 ## If Regions are determined by number of BASES
 
 fi
+
+
+
+
+
+
+
+
 
 
 
