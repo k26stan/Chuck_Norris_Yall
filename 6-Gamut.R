@@ -15,6 +15,7 @@ library( glmnet )
 
 LINE <- commandArgs(trailingOnly = TRUE)
 # LINE <- c("/projects/janssen/Walker/20150209a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150209a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,AGE,SEX,PC1,PC2")
+# LINE <- c("/projects/janssen/Walker/20150310a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150310a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,AGE,SEX,PC1,PC2")
 PathToList <- LINE[1]
 PathToPheno <- LINE[2]
 Which_Tests <- LINE[3]
@@ -129,18 +130,18 @@ for ( f in 1:N_FILES ) {
 	WTS <- dbeta( MAF, b1, b2 )
 	GWAS[,"WT"] <- round( WTS, 5 )
 	## Regional Stats
-	REG[f,"First"] <- HW$SNP[1]
-	REG[f,"Last"] <- HW$SNP[N_SNPS]
-	REG[f,"SNPs"] <- N_SNPS
-	REG[f,"Rare_SNPs"] <- length(which( MAF<.01 ))
+	REG[f,"First"] <- as.character( HW$SNP[1] )
+	REG[f,"Last"] <- as.character( HW$SNP[N_SNPS] )
+	HW.threshold <- 1e-30
+	RM.HWE <- which( HW$P < HW.threshold )
+	RM.MAF <- which( MAF < .01 )
+	REG[f,"SNPs"] <- N_SNPS - length(RM.HWE)
+	REG[f,"Rare_SNPs"] <- length(which( MAF<.01 )) - length(which( MAF[RM.HWE]<.01 ))
 
 	#####################################################
 	## Run Single-Locus Test on Relevant SNPs ###########
 	 # Get rid of some SNPs
 	print("Compiling Single-Locus Stats")
-	HW.threshold <- 1e-30
-	RM.HWE <- which( HW$P < HW.threshold )
-	RM.MAF <- which( MAF < .01 )
 	RM <- union( RM.MAF, RM.HWE )
 	KP <- setdiff( 1:N_SNPS, RM )
 	 # Loop through Remaining SNPs
@@ -156,12 +157,16 @@ for ( f in 1:N_FILES ) {
 	## (Removing HWE Violations) ###########
 	print("Compiling Burden Stats")
 	 # Normal Burden Test
-	BURD.samp <- rowSums(GT[ , -RM.HWE ])
+	if ( length(RM.HWE)>0 ) {
+		BURD.samp <- rowSums(GT[ , -RM.HWE ])
+	}else{ BURD.samp <- rowSums(GT) }
 	BURD[,f] <- BURD.samp
 	MOD <- lm( RESIDS[SAMPS] ~ BURD.samp[SAMPS] )
 	REG[f,"BURD"] <- summary(MOD)$coefficients[ 2,"Pr(>|t|)" ]
 	 # Weighted Burden Test
-	BURD.wt.samp <- rowSums( WTS[-RM.HWE] * GT[ , -RM.HWE ] )
+	if ( length(RM.HWE)>0 ) {
+		BURD.wt.samp <- rowSums( WTS[-RM.HWE] * GT[ , -RM.HWE ] )
+		}else{ BURD.wt.samp <- rowSums( WTS * GT ) }
 	BURD.wt[,f] <- BURD.wt.samp
 	MOD <- lm( RESIDS[SAMPS] ~ BURD.wt.samp[SAMPS] )
 	REG[f,"BURD.wt"] <- summary(MOD)$coefficients[ 2,"Pr(>|t|)" ]
@@ -180,8 +185,66 @@ for ( f in 1:N_FILES ) {
 
 }
 
+###############################################################
+## RE-FORMAT OUTPUTS ##########################################
+###############################################################
 
+## GWAS Table
+# GWAS <- data.frame( )
 
+###############################################################
+## PLOT RESULTS ###############################################
+###############################################################
+
+## Plot GWAS Results
+XLIM <- c( 1, nrow(GWAS) )
+YLIM <- c( 0, -log10( min(as.numeric(GWAS[,"P_Assoc"]),na.rm=T) ) )
+jpeg( paste(PathToOut,"Pl_Gamut_GWAS.jpeg",sep=""), width=2000,height=1000,pointsize=30 )
+plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="Single-Locus Association",xlab="Position",ylab="-log10(P)" )
+abline( h=seq(0,YLIM[2],1), lty=2,col="grey50",lwd=1 )
+abline( h=-log10(.05/1e6), lty=2,col="firebrick2",lwd=1 )
+points( 1:nrow(GWAS),-log10(as.numeric(GWAS[,"P_Assoc"])), col="slateblue3", pch="+" )
+dev.off()
+
+## Plot Burden Test Results
+XLIM <- c( 1, nrow(REG) )
+YLIM <- c( 0, -log10( min(as.numeric(REG[,5:8]),na.rm=T) ) )
+COLS <- c("firebrick2","gold2","chartreuse2","deepskyblue2")
+jpeg( paste(PathToOut,"Pl_Gamut_REG_BURD.jpeg",sep=""), width=2000,height=1000,pointsize=30 )
+plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="Burden Test",xlab="Window",ylab="-log10(P)" )
+abline( h=seq(0,YLIM[2],1), lty=2,col="grey50",lwd=1 )
+points( 1:nrow(REG),-log10(as.numeric(REG[,"BURD"])), col=COLS[1], pch="+" )
+points( 1:nrow(REG),-log10(as.numeric(REG[,"BURD.wt"])), col=COLS[2], pch="+" )
+points( 1:nrow(REG),-log10(as.numeric(REG[,"BURD.rare"])), col=COLS[3], pch="+" )
+points( 1:nrow(REG),-log10(as.numeric(REG[,"BURD.wt.rare"])), col=COLS[4], pch="+" )
+legend( "topleft", pch="+",col=COLS, legend=colnames(REG)[5:8] )
+dev.off()
+
+## Plot Variant Counts
+XLIM <- c( 1, nrow(REG) )
+YLIM <- c( 0, max(as.numeric(REG[,3:4]),na.rm=T) )
+COLS <- c("tomato2","cadetblue2","darkorchid2")
+jpeg( paste(PathToOut,"Pl_Gamut_REG_VARS.jpeg",sep=""), width=2000,height=1000,pointsize=30 )
+plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="Variant Counts",xlab="Window",ylab="# Variants" )
+abline( h=seq(0,YLIM[2],100), lty=2,col="grey50",lwd=1 )
+points( 1:nrow(REG),as.numeric(REG[,"SNPs"]), col=COLS[1], pch="+" )
+points( 1:nrow(REG),as.numeric(REG[,"Rare_SNPs"]), col=COLS[2], pch="+" )
+points( 1:nrow(REG),as.numeric(REG[,"SNPs"])-as.numeric(REG[,"Rare_SNPs"]), col=COLS[3], pch="+" )
+legend( "bottomleft", pch="+",col=COLS, legend=c(colnames(REG)[3:4],"Common_SNPs") )
+dev.off()
+
+###############################################################
+## WRITE TABLES ###############################################
+###############################################################
+
+write.table( GWAS, paste(PathToOut,"Gamut_GWAS.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+
+write.table( REG, paste(PathToOut,"Gamut_REG.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+
+write.table( BURD, paste(PathToOut,"Gamut_BURD.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+write.table( BURD.wt, paste(PathToOut,"Gamut_BURD.wt.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+write.table( BURD.rare, paste(PathToOut,"Gamut_BURD.rare.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+write.table( BURD.wt.rare, paste(PathToOut,"Gamut_BURD.wt.rare.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
 
 
 

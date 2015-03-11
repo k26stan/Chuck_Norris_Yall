@@ -3,7 +3,8 @@
 # Make_Cov_Tab.R <Path/To/EigenVectors> <Path/To/Covariate_Table> <Path/To/Phenotype> <Path/To/Output>
 
 LINE <- commandArgs(trailingOnly = TRUE)
-# LINE <- c("/projects/janssen/Walker/20150209a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/PCs.eigenvec","/projects/janssen/ASSOCIATION/PH-PHENOTYPES/COV.txt","/projects/janssen/ASSOCIATION/PH-PHENOTYPES/LT8_DEL_MNe_MN.txt", "/projects/janssen/Walker/20150209a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Cov_w_PCs.txt")
+# LINE <- c("/projects/janssen/Walker/20150310a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/PCs.eigenvec","/projects/janssen/ASSOCIATION/PH-PHENOTYPES/COV.txt","/projects/janssen/ASSOCIATION/PH-PHENOTYPES/LT8_DEL_MNe_MN.txt", "/projects/janssen/Walker/20150310a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Cov_w_PCs.txt")
+# LINE <- c("/projects/janssen/Walker/20150310a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/PCs.eigenvec","/projects/janssen/ASSOCIATION/PH-PHENOTYPES/COV.txt","/projects/janssen/ASSOCIATION/PH-PHENOTYPES/LT8_DEL_MNe_MN.txt", "/projects/janssen/Walker/20150310a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Cov_w_PCs.txt")
 PathToVec <- LINE[1]
 PathToCov <- LINE[2]
 PathToPheno <- LINE[3]

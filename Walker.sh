@@ -208,7 +208,7 @@ mkdir ${OUT_DIR_4}
 ls ${OUT_DIR_3} > ${OUT_DIR_4}/SNP_Lists.txt
 
 ## Loop through List and Pull out Genotypes for each Bin
-for file_name in `head -2 ${OUT_DIR_4}/SNP_Lists.txt`
+for file_name in `cat ${OUT_DIR_4}/SNP_Lists.txt`
 do
 ${PLINK} --bfile ${VAR_FILE%%.bed} \
 --extract ${OUT_DIR_3}/${file_name} \

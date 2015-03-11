@@ -27,7 +27,7 @@ START_STEP=${11} # Which Step do you want to start on?
 ##########################################################
 ##########################################################
 
-DATE=20150209a
+DATE=20150310a
 HOME_DIR=/projects/janssen/Walker
 
 ## Parameters
@@ -40,7 +40,8 @@ VAR_FILE=/projects/janssen/Walker/TEMP_BED.bed
 
 PHENO_FILE=/projects/janssen/ASSOCIATION/PH-PHENOTYPES/LT8_DEL_MNe_MN.txt
 PHENO_TYPE=C
-COV_FILE=/projects/janssen/ASSOCIATION/PH-PHENOTYPES/20141229_Full_Table.txt
+# COV_FILE=/projects/janssen/ASSOCIATION/PH-PHENOTYPES/20141229_Full_Table.txt
+COV_FILE=/projects/janssen/ASSOCIATION/PH-PHENOTYPES/COV.txt
 COVS=`echo DAS_BL_MN AGE SEX`
 EIG_VEC=F
 PC_COUNT=2
