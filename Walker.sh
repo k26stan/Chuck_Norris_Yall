@@ -62,6 +62,7 @@ GENE_TABLE=/home/kstandis/HandyStuff/GG-Gene_Names_DB.txt
 s3_Split_Var_List_SNP_py=/projects/janssen/Walker/SCRIPTS/3-Split_Var_List_SNP.py
 s3_Split_Var_List_Base_py=/projects/janssen/Walker/SCRIPTS/3-Split_Var_List_Base.py
 s5_Make_Cov_Tab_R=/projects/janssen/Walker/SCRIPTS/5-Make_Cov_Tab.R
+s6_Gamut_R=/projects/janssen/Walker/SCRIPTS/6-Gamut.R
 
 ###########################################################
 ## Pull some Info out of Parameters ##
@@ -108,8 +109,16 @@ OUT_DIR=${HOME_DIR}/${DATE}_${PHENO%%.txt}_${COVS_FILENAME}
 mkdir ${OUT_DIR}
 cd ${OUT_DIR}
 
+###########################################################
 ## Specify Output File Paths & Names
- # Maybe
+ # Directory to write New SNP lists to
+OUT_DIR_3=${OUT_DIR}/SNP_Lists
+ # Variant List
+VAR_LIST=${VAR_FILE%%.bed}.bim
+ # Directory to write Genotype Files to
+OUT_DIR_4=${OUT_DIR}/Genotype_Files
+ # New Covariate File
+NEW_COV_FILE=${OUT_DIR}/Cov_w_PCs.txt
 
 ## Specify a File to which to Write Updates
 UPDATE_FILE=${OUT_DIR}/Update.txt
@@ -157,11 +166,7 @@ echo \### Create Variant Lists \###
 echo `date` "3 - Create Variant Lists" >> ${UPDATE_FILE}
 
 ## Make Directory to write New SNP lists to
-OUT_DIR_3=${OUT_DIR}/SNP_Lists
 mkdir ${OUT_DIR_3}
-
-## Specify Variant List
-VAR_LIST=${VAR_FILE%%.bed}.bim
 
 ##########################################################
 ## If Regions are determined by number of SNPs
@@ -201,7 +206,6 @@ echo \### Pull Genotypes \###
 echo `date` "4 - Pull Genotypes" >> ${UPDATE_FILE}
 
 ## Make Directory to write Genotype Files to
-OUT_DIR_4=${OUT_DIR}/Genotype_Files
 mkdir ${OUT_DIR_4}
 
 ## Get List of all Variant Lists
@@ -226,15 +230,13 @@ fi
 ##########################################################################
 ## 5 ## Re-format Phenotype/Covariate File ###############################
 ##########################################################################
- # Use R
+ # Use Plink & R
  # Create PC's if necessary
  # Output new, combined Phenotype/Covariate File
 if [ "$START_STEP" -le 5 ]; then
 echo \### 5 - `date` \###
 echo \### Format Pheno/Covs \###
 echo `date` "5 - Format Pheno/Covs" >> ${UPDATE_FILE}
-
-NEW_COV_FILE=${OUT_DIR}/Cov_w_PCs.txt
 
 # If No Principal Components Exist, Make Them
 if [ $EIG_VEC = "F" -a $PC_COUNT -gt 0 ] ; then
@@ -274,13 +276,32 @@ echo \### Run Tests \###
 echo `date` "6 - Run Tests" >> ${UPDATE_FILE}
 
 ## Run Custom Script to Run Various Tests
-Rscript ${s6_Gamut} \
+Rscript ${s6_Gamut_R} \
 ${OUT_DIR_4}/SNP_Lists.txt \
 ${NEW_COV_FILE} \
-${WHICH_TESTS_COMMAND}
+${WHICH_TESTS_COMMAND} \
+${COVS_COMMAND}
 
+## Done
+echo `date` "6 - Run Tests - DONE" >> ${UPDATE_FILE}
+printf "V\nV\nV\nV\nV\nV\nV\nV\n"
+fi
+##########################################################################
+## 7 ## CLEAN UP FOLDER ##################################################
+##########################################################################
+ # Use Bash
+ # Delete files that take up a lot of space and won't be used again
+   # Genotype Files: raw files, 
+if [ "$START_STEP" -le 7 ]; then
+echo \### 7 - `date` \###
+echo \### Clean Up \###
+echo `date` "7 - Clean Up" >> ${UPDATE_FILE}
 
-
+# If specified, Delete Genotype Files
+if [ ${CLEAN_UP} = "T" ]
+then
+rm -r ${OUT_DIR_4}
+fi
 
 
 

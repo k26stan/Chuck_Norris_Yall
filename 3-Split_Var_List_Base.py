@@ -100,7 +100,7 @@ for var_line in var:
 		# Specify Bin and File Name for New Output
 		bin_start = int( rounddown( line_coord ) )
 		bin_end = int( roundup( line_coord ) - 1 )
-		file_name = ( "%s/Chr%s_%s-%s.txt" ) % ( PathToOut, which_chr, bin_start, bin_end )
+		file_name = ( "%s/Chr%s_%s-%s.txt" ) % ( PathToOut, line_chr, bin_start, bin_end )
 		# Open File to Write to
 		w = open( file_name, 'w' )
 	if line_coord < bin_end:
@@ -112,7 +112,7 @@ for var_line in var:
 		# Specify Bin and File Name for New Output
 		bin_start = int( rounddown( line_coord ) )
 		bin_end = int( roundup( line_coord ) - 1 )
-		file_name = ( "%s/Chr%s_%s-%s.txt" ) % ( PathToOut, which_chr, bin_start, bin_end )
+		file_name = ( "%s/Chr%s_%s-%s.txt" ) % ( PathToOut, line_chr, bin_start, bin_end )
 		# Open File to Write to
 		w = open( file_name, 'w' )
 		# Write to File

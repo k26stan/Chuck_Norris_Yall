@@ -16,6 +16,8 @@ library( glmnet )
 LINE <- commandArgs(trailingOnly = TRUE)
 # LINE <- c("/projects/janssen/Walker/20150209a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150209a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,AGE,SEX,PC1,PC2")
 # LINE <- c("/projects/janssen/Walker/20150310a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150310a_LT8_DEL_MNe_MN_DAS_BL_MN_AGE_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,AGE,SEX,PC1,PC2")
+# LINE <- c("/projects/janssen/Walker/20150408_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150408_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,SEX,PC1,PC2")
+# LINE <- c("/projects/janssen/Walker/20150409_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150409_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,SEX,PC1,PC2")
 PathToList <- LINE[1]
 PathToPheno <- LINE[2]
 Which_Tests <- LINE[3]
@@ -81,12 +83,14 @@ RESIDS <- residuals( lm( Pheno ~ ., data=CP ) )
 
 ## Single-Locus Results/Stats
  # SNP name, MAF, P-Val (linear model)
-GWAS <- array( ,c(0,5) )
-colnames(GWAS) <- c("SNP","MAF","WT","P_Assoc","P_HW")
+GWAS_COLNAMES <- c("SNP","MAF","WT","P_Assoc","P_HW")
+GWAS <- array( ,c(0,length(GWAS_COLNAMES)) )
+colnames(GWAS) <- GWAS_COLNAMES
 
 ## Regional Test Results/Stats
-REG <- array( ,c(N_FILES,8) )
-colnames(REG) <- c("First","Last","SNPs","Rare_SNPs","BURD","BURD.wt","BURD.rare","BURD.wt.rare")
+REG_COLNAMES <- c("First","Last","Mid","SNPs","Rare_SNPs","BURD","BURD.wt","BURD.rare","BURD.wt.rare")
+REG <- array( ,c(N_FILES,length(REG_COLNAMES)) )
+colnames(REG) <- REG_COLNAMES
 rownames(REG) <- gsub( ".txt","", FILE_LIST, fixed=T )
 
 ## Burden Test Stats
@@ -101,10 +105,12 @@ rownames(BURD) <- rownames(BURD.wt) <- rownames(BURD.rare) <- rownames(BURD.wt.r
 ## Loop through FILE_LIST and load GT data
 start_time <- proc.time()
 for ( f in 1:N_FILES ) {
+# for ( f in 1:100 ) {
 	# Specify File Name & Index Name
 	file <- FILE_LIST[f]
 	file_name <- paste( PathToGT, gsub( "txt", "raw", file ), sep="")
 	name <- gsub( ".txt", "", file, fixed=T )
+	position <- strsplit( name, "_" )[[1]][2]
 	print(paste( "Running:",f,"of",N_FILES,"-",name,"-",round(proc.time()-start_time,3)[3] ))
 	# Load Genotype File
 	GT <- read.table( file_name, header=T )
@@ -128,10 +134,11 @@ for ( f in 1:N_FILES ) {
 	 # Calculate Weight based on MAF
 	b1 <- 1 ; b2 <- 10
 	WTS <- dbeta( MAF, b1, b2 )
-	GWAS[,"WT"] <- round( WTS, 5 )
+	GWAS.temp[,"WT"] <- round( WTS, 5 )
 	## Regional Stats
 	REG[f,"First"] <- as.character( HW$SNP[1] )
 	REG[f,"Last"] <- as.character( HW$SNP[N_SNPS] )
+	REG[f,"Mid"] <- position
 	HW.threshold <- 1e-30
 	RM.HWE <- which( HW$P < HW.threshold )
 	RM.MAF <- which( MAF < .01 )
@@ -183,7 +190,40 @@ for ( f in 1:N_FILES ) {
 	MOD <- lm( RESIDS[SAMPS] ~ BURD.wt.rare.samp[SAMPS] )
 	REG[f,"BURD.wt.rare"] <- summary(MOD)$coefficients[ 2,"Pr(>|t|)" ]
 
-}
+	#####################################################
+	## Save Tables every few Loops ###########	
+	if ( f %% 50 == 0 ) {
+		print=( "WRITING TABLES!!" )
+		## Write GWAS Results Table
+		write.table( GWAS, paste(PathToOut,"Gamut_GWAS.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+
+		## Write Regression Results Table
+		write.table( REG, paste(PathToOut,"Gamut_REG.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+
+		## Write Burden Stats Table
+		write.table( BURD, paste(PathToOut,"Gamut_BURD.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
+		write.table( BURD.wt, paste(PathToOut,"Gamut_BURD.wt.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
+		write.table( BURD.rare, paste(PathToOut,"Gamut_BURD.rare.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
+		write.table( BURD.wt.rare, paste(PathToOut,"Gamut_BURD.wt.rare.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
+	}
+	
+} # Close File Loop
+
+###############################################################
+## WRITE TABLES ###############################################
+###############################################################
+
+## Write GWAS Results Table
+write.table( GWAS, paste(PathToOut,"Gamut_GWAS.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+
+## Write Regression Results Table
+write.table( REG, paste(PathToOut,"Gamut_REG.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
+
+## Write Burden Stats Table
+write.table( BURD, paste(PathToOut,"Gamut_BURD.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
+write.table( BURD.wt, paste(PathToOut,"Gamut_BURD.wt.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
+write.table( BURD.rare, paste(PathToOut,"Gamut_BURD.rare.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
+write.table( BURD.wt.rare, paste(PathToOut,"Gamut_BURD.wt.rare.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
 
 ###############################################################
 ## RE-FORMAT OUTPUTS ##########################################
@@ -207,45 +247,33 @@ points( 1:nrow(GWAS),-log10(as.numeric(GWAS[,"P_Assoc"])), col="slateblue3", pch
 dev.off()
 
 ## Plot Burden Test Results
-XLIM <- c( 1, nrow(REG) )
-YLIM <- c( 0, -log10( min(as.numeric(REG[,5:8]),na.rm=T) ) )
+XLIM <- range( REG[,"Mid"], na.rm=T ) # c( 1, nrow(REG) )
+YLIM <- c( 0,7 )
+YLIM <- c( 0, -log10( min(as.numeric( REG[,grep("BURD",colnames(REG))] ),na.rm=T) ) )
 COLS <- c("firebrick2","gold2","chartreuse2","deepskyblue2")
 jpeg( paste(PathToOut,"Pl_Gamut_REG_BURD.jpeg",sep=""), width=2000,height=1000,pointsize=30 )
 plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="Burden Test",xlab="Window",ylab="-log10(P)" )
 abline( h=seq(0,YLIM[2],1), lty=2,col="grey50",lwd=1 )
-points( 1:nrow(REG),-log10(as.numeric(REG[,"BURD"])), col=COLS[1], pch="+" )
-points( 1:nrow(REG),-log10(as.numeric(REG[,"BURD.wt"])), col=COLS[2], pch="+" )
-points( 1:nrow(REG),-log10(as.numeric(REG[,"BURD.rare"])), col=COLS[3], pch="+" )
-points( 1:nrow(REG),-log10(as.numeric(REG[,"BURD.wt.rare"])), col=COLS[4], pch="+" )
-legend( "topleft", pch="+",col=COLS, legend=colnames(REG)[5:8] )
+points( REG[,"Mid"],-log10(as.numeric(REG[,"BURD"])), col=COLS[1], pch="+" )
+points( REG[,"Mid"],-log10(as.numeric(REG[,"BURD.wt"])), col=COLS[2], pch="+" )
+points( REG[,"Mid"],-log10(as.numeric(REG[,"BURD.rare"])), col=COLS[3], pch="+" )
+points( REG[,"Mid"],-log10(as.numeric(REG[,"BURD.wt.rare"])), col=COLS[4], pch="+" )
+legend( "topleft", pch="+",col=COLS, legend=colnames(REG)[grep("BURD",colnames(REG))] )
 dev.off()
 
 ## Plot Variant Counts
-XLIM <- c( 1, nrow(REG) )
-YLIM <- c( 0, max(as.numeric(REG[,3:4]),na.rm=T) )
+XLIM <- range( REG[,"Mid"], na.rm=T ) # c( 1, nrow(REG) )
+YLIM <- c( 0,1.2*REG[1,"SNPs"] )
+YLIM <- c( 0, max(as.numeric(REG[,grep("SNPs",colnames(REG))]),na.rm=T) )
 COLS <- c("tomato2","cadetblue2","darkorchid2")
 jpeg( paste(PathToOut,"Pl_Gamut_REG_VARS.jpeg",sep=""), width=2000,height=1000,pointsize=30 )
 plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="Variant Counts",xlab="Window",ylab="# Variants" )
 abline( h=seq(0,YLIM[2],100), lty=2,col="grey50",lwd=1 )
-points( 1:nrow(REG),as.numeric(REG[,"SNPs"]), col=COLS[1], pch="+" )
-points( 1:nrow(REG),as.numeric(REG[,"Rare_SNPs"]), col=COLS[2], pch="+" )
-points( 1:nrow(REG),as.numeric(REG[,"SNPs"])-as.numeric(REG[,"Rare_SNPs"]), col=COLS[3], pch="+" )
-legend( "bottomleft", pch="+",col=COLS, legend=c(colnames(REG)[3:4],"Common_SNPs") )
+points( REG[,"Mid"],as.numeric(REG[,"SNPs"]), col=COLS[1], pch="+" )
+points( REG[,"Mid"],as.numeric(REG[,"Rare_SNPs"]), col=COLS[2], pch="+" )
+points( REG[,"Mid"],as.numeric(REG[,"SNPs"])-as.numeric(REG[,"Rare_SNPs"]), col=COLS[3], pch="+" )
+legend( "bottomleft", pch="+",col=COLS, legend=c(colnames(REG)[grep("SNPs",colnames(REG))],"Common_SNPs") )
 dev.off()
-
-###############################################################
-## WRITE TABLES ###############################################
-###############################################################
-
-write.table( GWAS, paste(PathToOut,"Gamut_GWAS.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
-
-write.table( REG, paste(PathToOut,"Gamut_REG.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
-
-write.table( BURD, paste(PathToOut,"Gamut_BURD.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
-write.table( BURD.wt, paste(PathToOut,"Gamut_BURD.wt.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
-write.table( BURD.rare, paste(PathToOut,"Gamut_BURD.rare.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
-write.table( BURD.wt.rare, paste(PathToOut,"Gamut_BURD.wt.rare.txt",sep=""), sep="\t",row.names=F,col.names=T,quote=F )
-
 
 
 
