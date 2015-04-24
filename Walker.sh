@@ -47,6 +47,7 @@ COVS=${10} # Which Covariates to Include?
 EIG_VEC=${11} # Output from Plink's --pca command (MAF>1%) or "F"
 PC_COUNT=${12} # How many PCs to Include as Covariates?
 START_STEP=${13} # Which Step do you want to start on?
+CLEANUP=${14} # T/F to clean up directory after completion
 
 ###########################################################
 ## Constant Paths ##
