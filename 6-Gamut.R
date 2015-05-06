@@ -19,6 +19,7 @@ LINE <- commandArgs(trailingOnly = TRUE)
 # LINE <- c("/projects/janssen/Walker/20150408_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150408_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,SEX,PC1,PC2")
 # LINE <- c("/projects/janssen/Walker/20150409_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150409_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,SEX,PC1,PC2")
 # LINE <- c("/projects/janssen/Walker/20150424_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150424_LT8_DEL_MNe_MN_DAS_BL_MN_SEX_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,SEX,PC1,PC2")
+# LINE <- c("/projects/janssen/Walker/20150430_WG_1000SNP/20150430_1_LT8_DEL_MNe_MN_DAS_BL_MN_PC1_PC2/Genotype_Files/SNP_Lists.txt","/projects/janssen/Walker/20150430_WG_1000SNP/20150430_1_LT8_DEL_MNe_MN_DAS_BL_MN_PC1_PC2/Cov_w_PCs.txt","BURD,SKAT,ELNET","DAS_BL_MN,PC1,PC2")
 PathToList <- LINE[1]
 PathToPheno <- LINE[2]
 Which_Tests <- LINE[3]
@@ -89,7 +90,7 @@ GWAS <- array( ,c(0,length(GWAS_COLNAMES)) )
 colnames(GWAS) <- GWAS_COLNAMES
 
 ## Regional Test Results/Stats
-REG_COLNAMES <- c("First","Last","Mid","SNPs","Rare_SNPs","BURD","BURD.wt","BURD.rare","BURD.wt.rare","MULT.f","MULT.p","MULT.rare.f","MULT.rare.p")
+REG_COLNAMES <- c("First","Last","Mid","SNPs","Rare_SNPs","BURD","BURD.wt","BURD.rare","BURD.wt.rare","F.temp","MULT.p","MULT.rare.f","MULT.rare.p")
 REG <- array( ,c(N_FILES,length(REG_COLNAMES)) )
 colnames(REG) <- REG_COLNAMES
 rownames(REG) <- gsub( ".txt","", FILE_LIST, fixed=T )
@@ -105,8 +106,8 @@ rownames(BURD) <- rownames(BURD.wt) <- rownames(BURD.rare) <- rownames(BURD.wt.r
 
 ## Loop through FILE_LIST and load GT data
 start_time <- proc.time()
-for ( f in 1:N_FILES ) {
-# for ( f in 1001:N_FILES ) {
+# for ( f in 1:N_FILES ) {
+for ( f in 500:N_FILES ) {
 # for ( f in 1:100 ) {
 	# Specify File Name & Index Name
 	file <- FILE_LIST[f]
@@ -120,6 +121,8 @@ for ( f in 1:N_FILES ) {
 	GT <- GT[ , 7:ncol(GT) ]
 	rownames(GT) <- GT.samps
 	GT <- GT[ SAMPS, ]
+	# GT.maf.0 <- which( colSums(GT[SAMPS,])==0 )
+	# GT <- which
 	# Load Hardy-Weinberg File
 	HW <- read.table( gsub("raw","hwe",file_name), header=T )
 	N_SNPS <- nrow(HW)
@@ -130,7 +133,7 @@ for ( f in 1:N_FILES ) {
 	GWAS.temp[,"SNP"] <- as.character( HW[,"SNP"] )
 	GWAS.temp[,"P_HW"] <- as.numeric( HW[,"P"] )
 	 # MAF
-	MAF <- colMeans(GT) / 2 # apply( GT, 2, mean )
+	MAF <- colMeans(GT, na.rm=T) / 2 # apply( GT, 2, mean )
 	MAF[ which(MAF>.5) ] <- 1 - MAF[ which(MAF>.5) ]
 	GWAS.temp[,"MAF"] <- MAF
 	 # Calculate Weight based on MAF
@@ -142,7 +145,7 @@ for ( f in 1:N_FILES ) {
 	REG[f,"Last"] <- as.character( HW$SNP[N_SNPS] )
 	REG[f,"Mid"] <- position
 	HW.threshold <- 1e-20
-	RM.HWE <- which( HW$P < HW.threshold )
+	RM.HWE <- which( HW$P < HW.threshold | is.na(MAF) )
 	RM.MAF <- which( MAF < .01 )
 	REG[f,"SNPs"] <- N_SNPS - length(RM.HWE)
 	REG[f,"Rare_SNPs"] <- length(which( MAF<.01 )) - length(which( MAF[RM.HWE]<.01 ))
@@ -211,19 +214,19 @@ for ( f in 1:N_FILES ) {
 	}else{ MULT <- merge( data.frame(RESIDS),GT, by="row.names" ) }
 	MULT.2 <- lm( RESIDS ~ ., data=MULT[,2:ncol(MULT)] )
 	MULT.3 <- summary(MULT.2)
-	MULT.f <- MULT.3$fstatistic
-	MULT.p <- pf(MULT.f[1],MULT.f[2],MULT.f[3],lower.tail=F)
+	F.temp <- MULT.3$fstatistic
+	MULT.p <- pf(F.temp[1],F.temp[2],F.temp[3],lower.tail=F)
 	REG[f,"MULT.p"] <- MULT.p
-	REG[f,"MULT.f"] <- MULT.f[1]
+	REG[f,"F.temp"] <- F.temp[1]
 
 	if ( length(WHICH)>0 ) {
 		MULT <- merge( data.frame(RESIDS),data.frame(GT[ , WHICH ],row.names=rownames(GT)), by="row.names" )
 		MULT.2 <- lm( RESIDS ~ ., data=MULT[,2:ncol(MULT)] )
 		MULT.3 <- summary(MULT.2)
-		MULT.f <- MULT.3$fstatistic
-		MULT.p <- pf(MULT.f[1],MULT.f[2],MULT.f[3],lower.tail=F)
+		F.temp <- MULT.3$fstatistic
+		MULT.p <- pf(F.temp[1],F.temp[2],F.temp[3],lower.tail=F)
 		REG[f,"MULT.rare.p"] <- MULT.p
-		REG[f,"MULT.rare.f"] <- MULT.f[1]
+		REG[f,"MULT.rare.f"] <- F.temp[1]
 	}else{
 		REG[f,"MULT.rare.p"] <- NA
 		REG[f,"MULT.rare.f"] <- NA
@@ -247,7 +250,7 @@ for ( f in 1:N_FILES ) {
 		write.table( BURD.rare, paste(PathToOut,"Gamut_BURD.rare.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
 		write.table( BURD.wt.rare, paste(PathToOut,"Gamut_BURD.wt.rare.txt",sep=""), sep="\t",row.names=T,col.names=T,quote=F )
 	}
-	
+
 } # Close File Loop
 
 ###############################################################
@@ -270,12 +273,13 @@ write.table( BURD.wt.rare, paste(PathToOut,"Gamut_BURD.wt.rare.txt",sep=""), sep
 ## RE-LOAD FILES FOR MANUAL PLOTTING ##########################
 ###############################################################
 
+# for file in `ls Gamut_*`; do mv ${file} ${file%%.txt}.1-500.txt; done
+
 # for file in `ls Gamut_*`; do mv ${file} ${file%%.txt}.651-1000.txt; done
 # for file in `ls Gamut_*`; do mv ${file} ${file%%.txt}.1001-End.txt; done
 # for file in `ls Gamut_*1-650.651-1000.1001-End.txt`; do mv ${file} ${file%%1-650.651-1000.1001-End.txt}.txt; done
 # for file in `ls Gamut_*..txt`; do mv ${file} ${file%%..txt}.1-650.txt; done
 # for file in `ls Gamut_*651-1000.1001-End.txt`; do mv ${file} ${file%%651-1000.1001-End.txt}651-1000.txt; done
-
 
 # ######### 1-650 ###############
 # ## GWAS Results Tables
@@ -323,18 +327,41 @@ write.table( BURD.wt.rare, paste(PathToOut,"Gamut_BURD.wt.rare.txt",sep=""), sep
 # ## Regression Results Table
 # REG <- rbind( REG.1[1:650,], REG.2[651:1000,], REG.3[1001:nrow(REG.3),] )
 
+#####################################################
+
+######### 1001-End ###############
+## GWAS Results Tables
+GWAS.1 <- read.table( paste(PathToOut,"Gamut_GWAS.1-500.txt",sep=""), sep="\t",header=T )
+GWAS.2 <- read.table( paste(PathToOut,"Gamut_GWAS.txt",sep=""), sep="\t",header=T )
+
+## Regression Results Table
+REG.1 <- read.table( paste(PathToOut,"Gamut_REG.1-500.txt",sep=""), sep="\t",header=T )
+REG.2 <- read.table( paste(PathToOut,"Gamut_REG.txt",sep=""), sep="\t",header=T )
+
+######### 1001-End ###############
+## GWAS Results Tables
+grep( GWAS.1$SNP[nrow(GWAS.1)], GWAS.2$SNP )
+GWAS <- rbind( GWAS.1, GWAS.2[5001:nrow(GWAS.2),] )
+
+## Regression Results Table
+tail(which(!is.na(REG.1[,1])))
+tail(which(is.na(REG.2[,1])))
+REG <- rbind( REG.1[1:504,], REG.2[505:nrow(REG.2),] )
+
+
 ###############################################################
 ## PLOT RESULTS ###############################################
 ###############################################################
 
 ## Plot GWAS Results
-XLIM <- c( 1, nrow(GWAS) )
-YLIM <- c( 0, -log10( min(as.numeric(GWAS[,"P_Assoc"]),na.rm=T) ) )
+GWAS.plot <- GWAS[ which(!is.na(GWAS$P_Assoc)), ]
+XLIM <- c( 1, nrow(GWAS.plot) )
+YLIM <- c( 0, -log10( min(as.numeric(GWAS.plot[,"P_Assoc"]),na.rm=T) ) )
 jpeg( paste(PathToOut,"Pl_Gamut_GWAS.jpeg",sep=""), width=2000,height=1000,pointsize=30 )
 plot( 0,0,type="n", xlim=XLIM, ylim=YLIM, main="Single-Locus Association",xlab="Position",ylab="-log10(P)" )
-abline( h=seq(0,YLIM[2],1), lty=2,col="grey50",lwd=1 )
+abline( h=seq(0,YLIM[2]+3,1), lty=2,col="grey50",lwd=1 )
 abline( h=-log10(.05/1e6), lty=2,col="firebrick2",lwd=1 )
-points( 1:nrow(GWAS),-log10(as.numeric(GWAS[,"P_Assoc"])), col="slateblue3", pch="+" )
+points( 1:nrow(GWAS.plot),-log10(as.numeric(GWAS.plot[,"P_Assoc"])), col="slateblue3", pch="+" )
 dev.off()
 
 ## Plot Burden Test Results
@@ -356,7 +383,7 @@ dev.off()
 
 ## Plot Variant Counts
 XLIM <- range( as.numeric(REG[,"Mid"]), na.rm=T ) # c( 1, nrow(REG) )
-YLIM <- c( 0,1.2*REG[1,"SNPs"] )
+# YLIM <- c( 0,1.2*REG[1,"SNPs"] )
 YLIM <- c( 0, max(as.numeric(REG[,grep("SNPs",colnames(REG))]),na.rm=T) )
 COLS <- c("tomato2","cadetblue2","darkorchid2")
 jpeg( paste(PathToOut,"Pl_Gamut_REG_VARS.jpeg",sep=""), width=2000,height=1000,pointsize=30 )
@@ -384,14 +411,42 @@ points( -log10(EXP), -log10(sort(as.numeric(REG[,"BURD"]))), col=COLS[1],pch="+"
 points( -log10(EXP), -log10(sort(as.numeric(REG[,"BURD.wt"]))), col=COLS[2],pch="+",type="o" )
 points( -log10(EXP.rare), -log10(sort(as.numeric(REG[,"BURD.rare"]))), col=COLS[3],pch="+",type="o" )
 points( -log10(EXP.rare), -log10(sort(as.numeric(REG[,"BURD.wt.rare"]))), col=COLS[4],pch="+",type="o" )
-points( -log10(EXP), -log10(sort(as.numeric(REG[,"MULT.p"]))), col=COLS[5],pch="+",type="o" )
-points( -log10(EXP.rare), -log10(sort(as.numeric(REG[,"MULT.rare.p"]))), col=COLS[6],pch="+",type="o" )
+EXP.MULT.p <- (1:length(sort(REG[,"MULT.p"]))+1) / (length(sort(REG[,"MULT.p"]))+1)
+points( -log10(EXP.MULT.p), -log10(sort(as.numeric(REG[,"MULT.p"]))), col=COLS[5],pch="+",type="o" )
+EXP.MULT.rare.p <- (1:length(sort(REG[,"MULT.rare.p"]))+1) / (length(sort(REG[,"MULT.rare.p"]))+1)
+points( -log10(EXP.MULT.rare.p), -log10(sort(as.numeric(REG[,"MULT.rare.p"]))), col=COLS[6],pch="+",type="o" )
 legend( "topleft", pch="+",col=COLS, legend=c(colnames(REG)[grep("BURD",colnames(REG))],"MULT.p","MULT.rare.p") )
 dev.off()
 
+###############################################################
+## MULTIPLE REGRESSION w/ BURDEN STATS ########################
+###############################################################
+
+# MG.BURD.wt.rare <- merge( data.frame(RESIDS), BURD.wt.rare, by="row.names" )
+# SORT.BURD.wt.rare <- order( as.numeric(REG[,"BURD.wt.rare"]), decreasing=F )
+# How_Many <- 10
+# CAND.BURD.wt.rare <- SORT.BURD.wt.rare[1:How_Many] # SORT.BURD.wt.rare[2] # 
+# MOD.BURD.wt.rare <- lm( RESIDS ~ ., data=MG.BURD.wt.rare[,c(2,CAND.BURD.wt.rare+2)] )
+# summary(MOD.BURD.wt.rare)
+
+# Ps.wt.rare <- R2.adj.wt.rare <- numeric(How_Many)
+# for ( i in 1:How_Many ) {
+# 	CAND.BURD.wt.rare <- SORT.BURD.wt.rare[1:i] # SORT.BURD.wt.rare[2] # 
+# 	MOD.BURD.wt.rare <- lm( RESIDS ~ ., data=MG.BURD.wt.rare[,c(2,CAND.BURD.wt.rare+2)] )
+# 	F.temp <- summary(MOD.BURD.wt.rare)$fstatistic
+# 	Ps.wt.rare[i] <- pf(F.temp[1],F.temp[2],F.temp[3],lower.tail=F)
+# 	R2.adj.wt.rare[i] <- summary(MOD.BURD.wt.rare)$adj.r.squared
+# }
 
 
 
+# MG.BURD.wt.rare <- merge( data.frame(RESIDS), BURD.wt.rare, by="row.names" )
+# SORT.BURD.wt.rare <- order( as.numeric(REG[,"BURD.wt.rare"]), decreasing=F )
+# How_Many <- 10
+# CAND.BURD.wt.rare <- SORT.BURD.wt.rare[1:How_Many] # SORT.BURD.wt.rare[2] # 
+# MOD.BURD.wt.rare <- lm( RESIDS ~ ., data=MG.BURD.wt.rare[,c(2,CAND.BURD.wt.rare+2)] )
+# summary(MOD.BURD.wt.rare)
+ 
 
 ###############################################################
 ## END OF DOC #################################################
